@@ -50,8 +50,8 @@ class BGPUpdateMessage(BGPMessage):
 
         try:
             # Check last two bytes of byte payload - if they are set to zero we don't have any path attributes
-            if struct.unpack("!H", self.payload[-2:])[0] == 0:
-                self.path_attributes_length = 0
+            # if struct.unpack("!H", self.payload[-2:])[0] == 0:
+            #    self.path_attributes_length = 0
 
             # Unpack the length of withdrawn routes field and add 2 bytes to the current byte marker position
             self.withdrawn_routes_length = struct.unpack("!H", self.payload[:2])[0]
@@ -155,13 +155,18 @@ class BGPUpdateMessage(BGPMessage):
                 current_byte_position = self.path_attributes_length + 4 + self.withdrawn_routes_length
 
                 while continue_loop:
+                    # MOD for BGP add-path. This will make non-add path parsing not work
+                    current_byte_position += 4
                     # First of all we have to check the prefix length as byte-length of the following
                     # prefix depends on its prefix length (This is a 1-byte-field)
                     prefix_length_bytes = self.payload[current_byte_position:current_byte_position + 1]
                     prefix_length = struct.unpack("!B", prefix_length_bytes)[0]
                     current_byte_position += 1
 
-                    if 0 <= prefix_length <= 8:
+                    if prefix_length == 0:
+                        # Length of prefix field 0 byte, since prefix is 0.0.0.0 anyway
+                        prefix_bytes = prefix_length_bytes
+                    elif 0 < prefix_length <= 8:
                         # Length of prefix field: 1 Byte
                         prefix_bytes = self.payload[current_byte_position:current_byte_position + 1]
                         current_byte_position += 1
